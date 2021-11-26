@@ -1,0 +1,2 @@
+class ProcessFailedError(Exception):
+	pass
