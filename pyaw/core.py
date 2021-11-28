@@ -1,79 +1,97 @@
+# made by @ninjamar (https://github.com/ninjamar)
 import subprocess
 import ctypes
 import os
 from .errors import ProcessFailedError
 
-def gen_options(d):
-	opt_list = []
-	for key,value in d.items():
-		opt_list.append(f'-{key} {value} ')
-	return ''.join(opt_list)
+def gen_options(d:dict) -> str:
+    """
 
-def load_asm(spath,exported_data,assembler_options={'f':'elf64','o':'pyaw_lib.o'},compiler_options={'o':'pyaw_lib.so','shared':''},clear=True,cpp_file_path='pyaw_bind.cpp',compiler='g++',assembler='nasm'):
-	'''
-	generate a binding file 
-	:spath: assembly (uses nasm ) file to compile
-	:nasm_options: dictionary that contains options for nasm
-	:exported_data: data about functions exported from {spath}
-		- [[name,argtypes,return_type]]
-			- argtypes ['int']
-	'''
-	# does the assembler_options and compiler_options work?
-	# please document this code
-	# make a python package for this
-	# test EVERYTHING
-	
-	nasm_exec_command = f'{assembler} {gen_options(assembler_options)} {spath}'
+    :param d:dict: 
 
-	c_contents_start = 'extern "C" {'
-	c_contents_end = '}' 
-	c_functions = []
+    """
+    opt_list = []
+    for key,value in d.items():
+        opt_list.append(f'-{key} {value} ')
+    return ''.join(opt_list)
 
-	for item in exported_data:
-		name = item[0]
-		argtypes = item[1]
-		returntype = item[2]
+def load_asm(
+    spath:str,
+    exported_data:list,
+    assembler_options:dict={'f':'elf64','o':'pyaw_lib.o'},
+    compiler_options:dict={'o':'pyaw_lib.so','shared':''},
+    clear:bool=True,
+    cpp_file_path:str=f'{os.getcwd()}/pyaw_bind.cpp',
+    compiler:str='g++',
+    assembler:str='nasm'
+) -> ctypes.CDLL:
+    """
+    :param spath:str: 
+    :param exported_data:list: 
+    :param assembler_options:dict:  (Default value = {'f':'elf64')
+    :param 'o':'pyaw_lib.o'}: 
+    :param compiler_options:dict:  (Default value = {'o':'pyaw_lib.so')
+    :param 'shared':''}: 
+    :param clear:bool:  (Default value = True)
+    :param cpp_file_path:str:  (Default value = f'{os.getcwd()}/pyaw_bind.cpp')
+    :param compiler:str:  (Default value = 'g++')
+    :param assembler:str:  (Default value = 'nasm')
 
-		if argtypes == []:
-			c_functions.append(f'{returntype} {name}();')
-		else:
-			arg_input = []
-			for i in range(len(argtypes)):
-				arg_input.append(f'{argtypes[i]} arg{i},')
-			arg_input = ''.join(arg_input)
-			arg_input = arg_input[:-1]
-			c_functions.append(f'{returntype} {name}({arg_input});')
+    """
+    
+    nasm_exec_command = f'{assembler} {gen_options(assembler_options)} {spath}'
 
-	c_functions = ''.join(c_functions)
-	c_code = f'{c_contents_start}{c_functions}{c_contents_end}'
-	cpp_exec_command = f'{compiler} {gen_options(compiler_options)} {cpp_file_path} {assembler_options["o"]}'
-	
-	with open(cpp_file_path,'w') as f:
-		f.write(c_code)
+    cpp_contents_start = 'extern "C" {'
+    cpp_contents_end = '}' 
+    cpp_functions = []
 
-	p = subprocess.Popen(
-		'/bin/bash',
-		shell=True,
-		stdout=subprocess.PIPE,
-		stdin=subprocess.PIPE,
-		stderr=subprocess.PIPE
-	)
-	
-	p.stdin.write(f'{nasm_exec_command}\n'.encode('utf-8'))
-	
-	p.stdin.write(f'{cpp_exec_command}\n'.encode('utf-8'))
-	
-	out,err = p.communicate()
+    for item in exported_data:
+        name = item[0]
+        argtypes = item[1]
+        returntype = item[2]
 
-	if p.returncode != 0:
-		raise ProcessFailedError(f'Process failed: "{err.decode("utf-8")}"')
-	
-	clib = ctypes.CDLL(f'{os.getcwd()}/pyaw_lib.so')
-	type_map = {'int':ctypes.c_int}
-	for info in exported_data:
-		func_name = info[0]
-		getattr(clib,func_name).argtypes = [type_map[i] for i in info[1]]
-	if clear:
-		for file in [assembler_options['o'],compiler_options['o'],'pyaw_bind.cpp']:
-			os.remove(file)
-	return clib
+        if argtypes == []:
+            cpp_functions.append(f'{returntype} {name}();')
+        else:
+            arg_input = []
+            for i in range(len(argtypes)):
+                arg_input.append(f'{argtypes[i]} arg{i},')
+            arg_input = ''.join(arg_input)
+            arg_input = arg_input[:-1]
+            cpp_functions.append(f'{returntype} {name}({arg_input});')
+
+    cpp_functions = ''.join(cpp_functions)
+    cpp_code = f'{cpp_contents_start}{cpp_functions}{cpp_contents_end}'
+    cpp_exec_command = f'{compiler} {gen_options(compiler_options)} {cpp_file_path} {assembler_options["o"]}'
+    
+    with open(cpp_file_path,'w') as f:
+        f.write(cpp_code)
+
+    p = subprocess.Popen(
+        '/bin/bash',
+        shell=True,
+        stdout=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    
+    p.stdin.write(f'{nasm_exec_command}\n'.encode('utf-8'))
+    
+    p.stdin.write(f'{cpp_exec_command}\n'.encode('utf-8'))
+    
+    out,err = p.communicate()
+
+    if p.returncode != 0:
+        raise ProcessFailedError(f'Process failed: "{err.decode("utf-8")}"')
+    
+    clib = ctypes.CDLL(f'{os.getcwd()}/pyaw_lib.so')
+    type_map = {'int':ctypes.c_int}
+    for info in exported_data:
+        func_name = info[0]
+        return_type = info[2]
+        getattr(clib,func_name).argtypes = [type_map[i] for i in info[1]]
+        getattr(clib,func_name).restype = type_map[return_type]
+    if clear:
+        for file in [assembler_options['o'],compiler_options['o'],'pyaw_bind.cpp']:
+            os.remove(file)
+    return clib
