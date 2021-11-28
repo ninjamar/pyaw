@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
 	name='pyaw',
-  	version='0.0.1',
+  	version='0.0.2',
   	description='Python Assembly Wrapper',
   	author='ninjamar',
   	url='https://github.com/ninjamar/pyaw',
