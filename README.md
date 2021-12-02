@@ -28,3 +28,6 @@ print(lib.foo()) # this prints 100
 * The second argument is a list which contains information about the exported function inside `lib.asm`
 	* The first item is a list which follows the format of `[function_name,[argument types],returntype]`
 		* The only type allowed currently is `int` which can be inputed as `"int"` rather than the class because it gets changed to `ctypes.c_int`
+
+# TODO
+* Add inline assembly
