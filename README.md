@@ -31,3 +31,4 @@ print(lib.foo()) # this prints 100
 
 # TODO
 * Add inline assembly
+* Do https://codefactor.io check
